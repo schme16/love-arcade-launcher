@@ -8,13 +8,13 @@
 -- LOVE FUNCTIONS
 ---------------------------
 -- Create ArcadeBroswer table to keep everything tidy.
-_ArcadeBrowser = {}
-function _ArcadeBrowser:load()
+_ArcadeLauncher = {}
+function _ArcadeLauncher:load()
 	-- Initialization
 	function love.load()
-		_ArcadeBrowser.oldRequired = {}
+		_ArcadeLauncher.oldRequired = {}
 		for i,v in pairs(package.loaded) do
-			table.insert(_ArcadeBrowser.oldRequired, i)
+			table.insert(_ArcadeLauncher.oldRequired, i)
 		end
 		-- Load LuaSocket libs.
 		require 'socket'
@@ -25,19 +25,20 @@ function _ArcadeBrowser:load()
 		-- Load lite version of goo (GUI lib by Luke)
 		goo = require 'goo/goo'
 		-- Set some variables
-		_ArcadeBrowser.folder_name 	= 'loveArcadeBrowser'
-		_ArcadeBrowser.server 		= 'lovearcade.org'
-		_ArcadeBrowser.game_name 	= nil
-		_ArcadeBrowser.gameList 	= { {title = 'Loading'} }
-		_ArcadeBrowser.total_games	= 0
-		_ArcadeBrowser.netSkip		= false
-		_ArcadeBrowser.gui			= {}
+		_ArcadeLauncher.folder_name 	= 'loveArcadeLauncher'
+		_ArcadeLauncher.server 		= 'localhost'
+		_ArcadeLauncher.game_name 	= nil
+		_ArcadeLauncher.game_id 	= nil
+		_ArcadeLauncher.gameList 	= { {title = 'Loading'} }
+		_ArcadeLauncher.total_games	= 0
+		_ArcadeLauncher.netSkip		= false
+		_ArcadeLauncher.gui			= {}
 		-- Set the save folder.
-		love.filesystem.setIdentity( _ArcadeBrowser.folder_name )
+		love.filesystem.setIdentity( _ArcadeLauncher.folder_name )
 		-- Initiate the GUI.
-		_ArcadeBrowser:initGui( )
+		_ArcadeLauncher:initGui( )
 		-- Get the list of games.
-		_ArcadeBrowser:getGameList( )
+		_ArcadeLauncher:getGameList( )
 	end
 
 	-- Logic
@@ -99,6 +100,7 @@ function _ArcadeBrowser:load()
 	        if love.timer then love.timer.sleep(1) end
 	        if love.graphics then love.graphics.present() end
 			if no_loop then break end
+
 	    end
 	end
 	
@@ -108,7 +110,7 @@ end
 ---------------------------
 -- ARCADE BROWSER FUNCTIONS
 ---------------------------
-function _ArcadeBrowser:initGui()
+function _ArcadeLauncher:initGui()
 	goo.load()
 	-- White background should be nice.
 	love.graphics.setBackgroundColor( 255, 255, 255 )
@@ -138,38 +140,40 @@ function _ArcadeBrowser:initGui()
 	play:setPos( 100, 320 )
 	play:setText( 'Play!' )
 	play:sizeToText( )
-	play.onClick = _ArcadeBrowser.onCickPlay
+	play.onClick = _ArcadeLauncher.onCickPlay
 end
 
-function _ArcadeBrowser.onCickPlay( button )
+function _ArcadeLauncher.onCickPlay( button )
 	-- Get the name of the selected game.
-	local gamename = _ArcadeBrowser.game_name
+	local gamename = _ArcadeLauncher.game_name
+	local gamedir = _ArcadeLauncher.game_id
 	-- Check if it already exists.
-	if love.filesystem.exists( gamename ) then
-		_ArcadeBrowser:playGame( gamename )
+	if love.filesystem.exists( gamedir ) then
+		_ArcadeLauncher:playGame( gamedir )
 		return true
 	end
 	-- Else download the game
-	_ArcadeBrowser:downloadGame( gamename )
+	_ArcadeLauncher:downloadGame( gamedir )
 	return true
 end
 
-function _ArcadeBrowser:addGameButtons( gamelist )
+function _ArcadeLauncher:addGameButtons( gamelist )
 	local buttonList = {}
 	local button, artwork
 	for i,v in ipairs(gamelist) do
-		artwork = self:getArtwork( v.artwork, v.title )
-		buttonList[i] = self:addGameButton( v.title, artwork, 15+(i-1)*25 )
+		artwork = self:getArtwork( v.artwork, v.id )
+		buttonList[i] = self:addGameButton( v.title, artwork, 15+(i-1)*25,v.id )
 	end
 	buttonList[1]:onClick()
 end
 
-function _ArcadeBrowser:addGameButton( name, artwork, y )
+function _ArcadeLauncher:addGameButton( name, artwork, y, id )
 	local button = goo.button:new( self.gui.gameList )
 	button:setPos( -3, y )
 	button:setSize( 118, 20 )
 	button:setText( name )
 	button.game_name = name
+	button.game_dir = id
 	button.artwork = artwork
 	button.artworkScale = getScale( artwork, {width=320,height=300})
 	function button.onClick( button )
@@ -177,11 +181,12 @@ function _ArcadeBrowser:addGameButton( name, artwork, y )
 		self.gui.artwork:setScale( button.artworkScale.x, button.artworkScale.y )
 		self.gui.gameImage:setTitle( button.game_name )
 		self.game_name = button.game_name
+		self.game_id = button.game_dir
 	end
 	return button
 end
 
-function _ArcadeBrowser:getGameList()
+function _ArcadeLauncher:getGameList()
 	if not self.netSkip then
 		self.netSkip = true
 		local filename = 'gameList.lua'
@@ -203,7 +208,7 @@ function _ArcadeBrowser:getGameList()
 	end
 end
 
-function _ArcadeBrowser:getArtwork( imagename, title )
+function _ArcadeLauncher:getArtwork( imagename, title )
 	if imagename then
 			 url = string.format( 'http://%s/projects/%s/%s', self.server, title, imagename )
 		else
@@ -238,7 +243,7 @@ local filename = string.format( 'artwork/%s_%s', title, imagename )
 
 end
 
-function _ArcadeBrowser:getFileList( gamename )
+function _ArcadeLauncher:getFileList( gamename )
 	-- Create the game directory if it does not exist.
 	if not love.filesystem.exists( gamename ) then
 		love.filesystem.mkdir( gamename )
@@ -248,7 +253,7 @@ function _ArcadeBrowser:getFileList( gamename )
 	return self:downloadFile( url, gamename..'/.fileList.lua' )
 end
 
-function _ArcadeBrowser:downloadGame( gamename )
+function _ArcadeLauncher:downloadGame( gamename )
 	-- Show the download progress.
 	self.gui.gameList:setVisible( false )
 	self.gui.gameImage:setVisible( false )
@@ -288,7 +293,7 @@ function _ArcadeBrowser:downloadGame( gamename )
 	self:playGame( gamename )
 end
 
-function _ArcadeBrowser:downloadFile( url, saveto, step )
+function _ArcadeLauncher:downloadFile( url, saveto, step )
 	local step = step or self.filePump
 	local new_file = love.filesystem.newFile( saveto )
 	new_file:open( 'w' )
@@ -302,14 +307,14 @@ function _ArcadeBrowser:downloadFile( url, saveto, step )
 	return new_file, saveto
 end
 
-function _ArcadeBrowser.filePump( source, sink )
+function _ArcadeLauncher.filePump( source, sink )
 	love.run( true )
 	local chunk, src_err = source()
 	local ret, snk_err = sink(chunk, src_err)
 	return chunk and ret and not src_err and not snk_err, src_err or snk_err
 end
 
-function _ArcadeBrowser:playGame( gamename )
+function _ArcadeLauncher:playGame( gamename )
 	-- Clear the screen
 	love.graphics.setBackgroundColor(0,0,0)
 	love.graphics.clear()
@@ -337,7 +342,7 @@ function _ArcadeBrowser:playGame( gamename )
 		
 		-- Unload the Arcade Browser functions.
 		self:unload()
-		_ArcadeBrowser:changeFilesystem( gamename )
+		_ArcadeLauncher:changeFilesystem( gamename )
 		
 		-- Clear out old events before starting the game.
 		if love.event then
@@ -350,7 +355,7 @@ function _ArcadeBrowser:playGame( gamename )
 		
 		-- Allow us to go back.
 		-- Currently does not work.
-		--_ArcadeBrowser:hook( )
+		--_ArcadeLauncher:hook( )
 		
 		return true
 	else
@@ -358,7 +363,7 @@ function _ArcadeBrowser:playGame( gamename )
 	end
 end
 
-function _ArcadeBrowser:unload()
+function _ArcadeLauncher:unload()
 	-- Unload love functions.
 	love.load 			= nil
 	love.update 		= nil
@@ -367,16 +372,17 @@ function _ArcadeBrowser:unload()
 	love.mousereleased 	= nil
 	love.keypressed 	= nil
 	love.keyreleased 	= nil
-	-- Destroy the _ArcadeBrowser table.
+	-- Destroy the _ArcadeLauncher table.
 	goo 						= nil
-	_ArcadeBrowser.folder_name 	= nil
-	_ArcadeBrowser.server 		= nil
-	_ArcadeBrowser.gameList 	= nil
-	_ArcadeBrowser.game_name 	= nil
-	_ArcadeBrowser.total_games	= nil
-	_ArcadeBrowser.netSkip		= nil
-	_ArcadeBrowser.gui			= nil
-	_ArcadeBrowser.changedFS	= nil
+	_ArcadeLauncher.folder_name 	= nil
+	_ArcadeLauncher.server 		= nil
+	_ArcadeLauncher.gameList 	= nil
+	_ArcadeLauncher.game_name 	= nil
+	_ArcadeLauncher.game_id 	= nil
+	_ArcadeLauncher.total_games	= nil
+	_ArcadeLauncher.netSkip		= nil
+	_ArcadeLauncher.gui			= nil
+	_ArcadeLauncher.changedFS	= nil
 	http						= nil
 	ltn12						= nil
 	list						= nil
@@ -388,13 +394,13 @@ end
 
 -- Allow us to go back.
 -- Currently does not work.
-function _ArcadeBrowser:hook()
+function _ArcadeLauncher:hook()
 	local keyreleased = love.keyreleased
 	love.keyreleased = function(key,unicode)
 		if key == 'f12' then
-			_ArcadeBrowser:unload()
-			_ArcadeBrowser:reloadFilesystem()
-			_ArcadeBrowser:load()
+			_ArcadeLauncher:unload()
+			_ArcadeLauncher:reloadFilesystem()
+			_ArcadeLauncher:load()
 			love.graphics.setMode(500,400,false)
 			love.graphics.setCaption( 'Love Arcade Browser' )
 			return false
@@ -407,7 +413,7 @@ end
 ---------------------
 ---- Default config.
 ---------------------
-function _ArcadeBrowser:generateConfig()
+function _ArcadeLauncher:generateConfig()
 	local t = {
 		console = false,
 		title = "Untitled",
@@ -437,7 +443,7 @@ function _ArcadeBrowser:generateConfig()
 end
 
 
-function _ArcadeBrowser:changeFilesystem( gamename )
+function _ArcadeLauncher:changeFilesystem( gamename )
 	-- Only run this function once.
 	if self.changedFS then return end
 	self.changedFS = true
@@ -507,13 +513,13 @@ function _ArcadeBrowser:changeFilesystem( gamename )
 	love.filesystem.setIdentity = function() end
 end
 
-function _ArcadeBrowser:reloadFilesystem()
+function _ArcadeLauncher:reloadFilesystem()
 	for k,v in pairs( self.filesystem ) do
 		love.filesystem[k] = v
 	end
 end
 
-function _ArcadeBrowser:clearModules()
+function _ArcadeLauncher:clearModules()
 	for i,v in pairs(package.loaded) do
 		local wasLoaded = false
 		for j,b in pairs(self.oldRequired) do
@@ -533,6 +539,6 @@ end
 ---- Load me.
 ---------------------
 function love.load()
-	_ArcadeBrowser:load()
+	_ArcadeLauncher:load()
 end
 
