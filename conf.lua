@@ -5,5 +5,5 @@ function love.conf(t)
 	t.screen.width = 500
 	t.version = 0.9
 	t.author = "Shane Gadsby & Luke Perkin & Patrik"
-	t.console = false
+	t.console = true
 end
